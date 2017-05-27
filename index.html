@@ -1,10 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <meta http-equiv="Content-Type" content="text/html" charset="utf-8"/>
+    <title>botsimulation</title>
+
+    <!-- Babylon.js -->
+    <script src="../lib/babylon/hand.min-1.2.js"></script>
+    <!-- <script src="../lib/babylon/babylon.canvas2D.js"></script>  -->
+    <!-- <script src="https://preview.babylonjs.com/canvas2D/babylon.canvas2d.js"></script>  -->
+    <script src="../lib/babylon/babylon.3.0.0-alpha.max.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/2.5.0/babylon.max.js"></script> -->
+    <script src="../lib/babylon/materials/babylon.gridMaterial.min.js"></script>
+
+    <style>
+        html, body {
+            overflow: hidden;
+            width   : 100%;
+            height  : 100%;
+            margin  : 0;
+            padding : 0;
+        }
+
+        #renderCanvas {
+            width   : 100%;
+            height  : 100%;
+            touch-action: none;
+        }
+    </style>
 </head>
 <body>
 
+<canvas id="renderCanvas"></canvas>
+
+<script>
+  window.addEventListener('DOMContentLoaded', function(){
+
+    var canvas = document.getElementById('renderCanvas');
+    var engine = new BABYLON.Engine(canvas, true);
+    var scene;
+    var ladybug, ladybugMoving = false;
+    var movementkeys={left:0,right:0,bwd:0,fwd:0};
+
+    /*********************************CREATE-ASSETS******************************/
+    createAssets = function() {
+
+      var assetsManager = new BABYLON.AssetsManager(scene);
+      //----ASSETS-MANAGER--------------Loading Indicator
+      engine.loadingUIText = "Welcome...";
+
+      var meshTask = assetsManager.addMeshTask("ladybug1", "", "../anyms/ladybug/", "ladybug1.babylon");
+      meshTask.onSuccess = function (task) {
+        ladybug = task.loadedMeshes[0];
+        ladybug.position = new BABYLON.Vector3(0,0,-40);
+        ladybug.scaling.x = 0.015;
+        ladybug.scaling.y = 0.015;
+        ladybug.scaling.z = 0.015;
+      }
+
+      assetsManager.onFinish = function(tasks) {
+        engine.runRenderLoop(function() {
+          scene.render();
+        });
+      };
+      assetsManager.load();  // IMPORTANT.
+    }
+
+    /*********************************CREATE-CAMERA******************************/
+    createCamera = function() {
+
+      //ARC-ROTATE-CAMERA
+      // sceneFollowCamera = new BABYLON.ArcRotateCamera("ArcRotateCamera1", -Math.PI/2, (Math.PI/2.9), 10, new BABYLON.Vector3(0, 5, 0), scene);
+      // sceneFollowCamera.wheelPrecision = 15;
+      // // sceneFollowCamera.lowerRadiusLimit = 2;      //zoominandout
+      // // sceneFollowCamera.upperRadiusLimit = 300;
+      // // sceneFollowCamera.upperBetaLimit = 1.5;//lock camera in place vertically.
+      // // sceneFollowCamera.lowerBetaLimit = 1;//lock camera in place vertically.
+      // sceneFollowCamera.beta = 1;  //orbit around x axis
+      // sceneFollowCamera.radius = 25; //distance camera is from target.
+      // sceneFollowCamera.attachControl(canvas, false);
+
+      //FREE-CAMERA
+      var camera = new BABYLON.FreeCamera('camera1', new BABYLON.Vector3(0, 90,-90), scene);
+      camera.setTarget(BABYLON.Vector3.Zero());
+      camera.attachControl(canvas, true);
+    }
+
+    /*********************************CREATE-ZONES******************************/
+    var createZones = function(scene){
+
+      var target = BABYLON.Mesh.CreateSphere("target1",12,12,scene);
+      var targetMat = new BABYLON.StandardMaterial("tgtmat1",scene);
+      targetMat.emissiveColor = BABYLON.Color3.Green();
+      target.material = targetMat;
+      target.position = new BABYLON.Vector3(0,0,30)
+
+
+// var canvas2 = new BABYLON.ScreenSpaceCanvas2D(scene, {
+//     id: "ScreenCanvas",
+//     size: new BABYLON.Size(300, 100),
+//     backgroundFill: "#4040408F",
+//     backgroundRoundRadius: 50,
+//     children: [
+//         new BABYLON.Text2D("Hello World!", {
+//             id: "text",
+//             marginAlignment: "h: center, v:center",
+//             fontName: "20pt Arial",
+//         })
+//     ]
+// });
+
+// var canvas3 = new BABYLON.WorldSpaceCanvas2D(scene, new BABYLON.Size(100, 100), {
+//     id: "WorldSpaceCanvas",
+//     worldPosition: new BABYLON.Vector3(0, 0, 0),
+//     worldRotation: BABYLON.Quaternion.RotationYawPitchRoll(Math.PI / 4, Math.PI / 4, 0),
+//     renderScaleFactor: 8,
+//     enableInteraction: true,
+//     backgroundFill: "#C0C0C040",
+//     backgroundRoundRadius: 80,
+//     children: [
+//         new BABYLON.Text2D("World Space Canvas", { fontName: "30pt Arial", marginAlignment: "h: center, v: bottom" })
+//     ]
+// });
+      // var infoCanvas = new BABYLON.ScreenSpaceCanvas2D(scene, { id: "ScreenCanvas", size: new BABYLON.Size(500, 500) });
+      //  var text2 = new BABYLON.Text2D("UnbindTime", { parent: infoCanvas, id: "Text", marginAlignment: "h: left, v: bottom", fontName: "10pt Arial" });
+      //  var zone1 = new BABYLON.WorldSpaceCanvas2D(scene, new BABYLON.Size(150, 150), {
+      //      id: "WorldSpaceCanvas",
+      //      worldPosition: new BABYLON.Vector3(0, 0, 0),
+      //      worldRotation: BABYLON.Quaternion.RotationYawPitchRoll(Math.PI / 4, Math.PI / 4, 0),
+      //      enableInteraction: true,
+      //      backgroundFill: "#C0C0C040",
+      //      backgroundRoundRadius: 20,
+      //      children: [
+      //          new BABYLON.Text2D("World Space Canvas", { fontName: "8pt Arial", marginAlignment: "h: center, v: bottom", fontSuperSample: true })
+      //      ]
+      //  });
+      //  var rect = new BABYLON.Rectangle2D({ parent: zone1, x: 45, y: 45, width: 30, height: 30, fill: null, border: BABYLON.Canvas2D.GetGradientColorBrush(new BABYLON.Color4(0.9, 0.3, 0.9, 1), new BABYLON.Color4(1.0, 1.0, 1.0, 1)), borderThickness: 2 });
+      //  var buttonRect = new BABYLON.Rectangle2D({ parent: zone1, id: "button", x: 12, y: 12, width: 50, height: 15, fill: "#40C040FF", roundRadius: 2, children: [new BABYLON.Text2D("Click Me!", { fontName: "8pt Arial", marginAlignment: "h: center, v: center", fontSuperSample: true })] });
+      //  var button2Rect = new BABYLON.Rectangle2D({ parent: zone1, id: "button2", x: 70, y: 12, width: 40, height: 15, fill: "#4040C0FF", roundRadius: 2, isVisible: false, children: [new BABYLON.Text2D("Great!", { fontName: "8pt Arial", marginAlignment: "h: center, v: center", fontSuperSample: true })] });
+      //  ;
+      //  buttonRect.pointerEventObservable.add(function (d, s) {
+      //      button2Rect.levelVisible = !button2Rect.levelVisible;
+      //  }, BABYLON.PrimitivePointerInfo.PointerUp);
+      //  var insideRect = new BABYLON.Rectangle2D({ parent: rect, width: 10, height: 10, marginAlignment: "h: center, v: center", fill: "#0040F0FF" });
+      //  insideRect.roundRadius = 2;
+      // var timerId = setInterval(function () {
+      //     if (rect.isDisposed) {
+      //         clearInterval(timerId);
+      //         return;
+      //     }
+      //     //               text2.text = `Unbind Time: ${zone1.unbindTime.toFixed(4).toString()}`;
+      //     rect.rotation += 0.01;
+      // }, 10);
+      // return { zone1: zone1, node: zone1.worldSpaceCanvasNode };
+    }
+
+    /*********************************CREATE-CLICK******************************/
+    var createClick = function(){
+      window.addEventListener("click", function () {
+        var pickResult = scene.pick(scene.pointerX, scene.pointerY);
+        if (pickResult.hit) {
+          pickResult.pickedPoint.x;
+          pickResult.pickedMesh.name;
+          pickResult.pickedMesh.material.emissiveColor = BABYLON.Color3.Yellow();
+          ladybugMoving = !ladybugMoving;
+        }
+      });
+    }
+
+    var createAnimation = function(){
+
+      scene.registerBeforeRender(function () {
+        if(ladybugMoving){
+          console.log('moving!')
+          ladybug.position.z += 0.09;
+        }
+
+      });
+
+    }
+
+    /*********************************CREATE-SCENE******************************/
+    var createScene = function(){
+      scene = new BABYLON.Scene(engine);
+
+      var light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0,1,0), scene);
+      light.intensity = 0.8;
+
+      var ground = BABYLON.Mesh.CreateGround("ground1", 100, 100, 2, scene);
+      var gridMaterial = new BABYLON.GridMaterial("", scene);
+      gridMaterial.mainColor = new BABYLON.Color3(187/255, 187/255, 204/255);
+      // gridMaterial.mainColor = new BABYLON.Color3(0, 0, 0);
+      gridMaterial.lineColor = new BABYLON.Color3(86/255, 110/255, 173/255); //steelblue
+      // gridMaterial.lineColor = new BABYLON.Color3(0.0, 1.0, 0.0);
+      ground.material = gridMaterial;
+
+      createCamera();
+      createAssets();
+      createZones();
+      createClick();
+      createAnimation();
+
+      return scene;
+    }
+
+    /*********************************EXECUTE******************************/
+    var scene = createScene();
+    scene.clearColor = new BABYLON.Color3(.33,.44,.55);
+
+    window.addEventListener('resize', function(){
+      engine.resize();
+    });
+  });
+</script>
 </body>
+<!--GoogleAnalytics-->
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-91079342-1', 'auto');
+  ga('send', 'pageview');
+</script>
+<!--GoogleAnalytics-->
 </html>
